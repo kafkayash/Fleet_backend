@@ -36,6 +36,10 @@ app = FastAPI(
     title="EV Fleet Battery Analytics API",
     description="Backend for 20-vehicle SoH analytics & forecasting",
     version="0.3.0",
+    # ✅ ADDED: explicitly enable docs + openapi
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 
 # CORS
@@ -46,6 +50,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ✅ ADDED: root endpoint so base URL doesn't show 404
+@app.get("/")
+def root():
+    return {
+        "status": "ok",
+        "health": "/health",
+        "docs": "/docs",
+        "openapi": "/openapi.json",
+        "artifacts": "/meta/artifacts",
+    }
 
 @app.get("/health")
 def health_check():
