@@ -1,0 +1,32 @@
+[
+  {
+    "operator_id": "IB361",
+    "email": "operator1@example.com",
+    "employee_id": "EMP001",
+    "password_hash": "937e8d5fbb48bd4949536cd65b8d35c426b80d2f830c5c308e2cdec422ae2244"
+  },
+  {
+    "operator_id": "HX381",
+    "email": "likhith.yalamanchi@gmail.com",
+    "employee_id": "EMP003",
+    "password_hash": "5be677458c4f010ce6afc2b4add3f999724142b4f6f371fcb95ded177cd8b7f8"
+  },
+  {
+    "operator_id": "QP842",
+    "email": "yashwanth.velide36@gmail.com",
+    "employee_id": "EMP002",
+    "password_hash": "9f03848e190dc74c6ffa89b41e9977da01c44de2a4b9ed453a8cfd36fa0fdc1c"
+  },
+  {
+    "operator_id": "PO935",
+    "email": "likhith.yalamanchi18@gmail.com",
+    "employee_id": "EMP007",
+    "password_hash": "4b2e11f99c0b3b93446e868ef59d3fecaa9448d53e3b8945874ea91d985b3049"
+  },
+  {
+    "operator_id": "QP639",
+    "email": "verifiedhomosapien@gmail.com",
+    "employee_id": "EMP008",
+    "password_hash": "01301765281e984242f4df77c154509d84aa73d44623d527958c85fe3c105312"
+  }
+]
