@@ -41,22 +41,24 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json",
 )
-
 # CORS
-# - allow localhost dev
-# - allow any Netlify deploy URL (since Netlify subdomain changes)
-# - do NOT use allow_credentials=True with allow_origins=["*"]
+# - allow local dev
+# - allow any Netlify deploy URL (preview URLs change)
+# - DO NOT use allow_credentials=True with allow_origins=["*"]
+_allowed_origins = [
+    (FRONTEND_BASE_URL or "").rstrip("/"),
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+_allowed_origins = [o for o in _allowed_origins if o]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        FRONTEND_BASE_URL.rstrip("/"),
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=_allowed_origins,
     allow_origin_regex=r"^https://.*\.netlify\.app$",
     allow_credentials=False,
     allow_methods=["*"],
