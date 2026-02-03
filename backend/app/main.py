@@ -560,8 +560,8 @@ def forgot_password(req: ForgotPasswordRequest, background_tasks: BackgroundTask
         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
 
     token = create_reset_token(op.operator_id, op.email)
-    reset_url = f"{FRONTEND_BASE_URL}/reset-password?token={token}"
-
+    reset_url = f"{FRONTEND_BASE_URL.rstrip('/')}/#/reset-password?token={token}"
+    
     background_tasks.add_task(
         send_password_reset_email,
         to_email=op.email,
