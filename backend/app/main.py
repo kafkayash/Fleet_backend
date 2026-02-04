@@ -3,8 +3,9 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Body
 from pydantic import BaseModel
-
+from typing import Optional, Dict, Any
 from email.message import EmailMessage
 import smtplib
 
@@ -576,17 +577,38 @@ def forgot_password(req: ForgotPasswordRequest, background_tasks: BackgroundTask
 
 
 @app.post("/auth/reset-password", response_model=ResetPasswordResponse)
-def reset_password(req: ResetPasswordRequest):
+def reset_password(
+    req: Optional[ResetPasswordRequest] = Body(None),
+    raw: Optional[Dict[str, Any]] = Body(None),
+):
     """
     Verify reset token, update password in JSON and allow login with new password.
+    Accepts either:
+      - JSON: { token, new_password }  OR { token, newPassword }
     """
     try:
-        payload = verify_reset_token(req.token)
+        # If request matched ResetPasswordRequest, use it
+        if req is not None:
+            token = req.token
+            new_password = req.new_password
+        else:
+            # Otherwise fall back to raw dict (supports newPassword too)
+            data = raw or {}
+            token = data.get("token")
+            new_password = data.get("new_password") or data.get("newPassword")
+
+        if not token:
+            raise HTTPException(status_code=400, detail="Missing reset token")
+        if not new_password:
+            raise HTTPException(status_code=400, detail="Missing new password")
+
+        payload = verify_reset_token(token)
         operator_id = payload.get("sub")
         if not operator_id:
             raise HTTPException(status_code=400, detail="Invalid reset token payload")
 
-        auth.reset_operator_password(operator_id=operator_id, new_password=req.new_password)
+        auth.reset_operator_password(operator_id=operator_id, new_password=new_password)
+
     except HTTPException:
         raise
     except auth.OperatorNotFound as e:
