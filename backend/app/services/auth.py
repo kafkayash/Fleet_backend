@@ -25,9 +25,15 @@ from typing import Dict, List, Optional
 
 from ..config import FEAT_DF_CSV
 
-ART_DIR: Path = FEAT_DF_CSV.parent
+# ✅ FIX: Always store auth DB in backend/artifacts (NOT tied to FEAT_DF_CSV location)
+# auth.py is at: backend/app/services/auth.py
+# parents[0]=services, parents[1]=app, parents[2]=backend
+_BACKEND_DIR: Path = Path(__file__).resolve().parents[2]
+ART_DIR: Path = _BACKEND_DIR / "artifacts"
+
 OPERATORS_DB_PATH: Path = ART_DIR / "operators.json"
 EMPLOYEE_IDS_PATH: Path = ART_DIR / "employee_ids.txt"
+
 
 class EmployeeNotFound(Exception):
     pass
@@ -49,6 +55,7 @@ class Operator:
   employee_id: str
   password_hash: str
 
+
 def _load_operators() -> List[Dict]:
     if not OPERATORS_DB_PATH.exists():
         return []
@@ -64,12 +71,17 @@ def _load_operators() -> List[Dict]:
 
 def _save_operators(ops: List[Dict]) -> None:
     os.makedirs(OPERATORS_DB_PATH.parent, exist_ok=True)
-    with OPERATORS_DB_PATH.open("w", encoding="utf-8") as f:
+
+    # Write atomically to avoid partial writes if process restarts mid-write
+    tmp_path = OPERATORS_DB_PATH.with_suffix(".json.tmp")
+    with tmp_path.open("w", encoding="utf-8") as f:
         json.dump(ops, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, OPERATORS_DB_PATH)
 
 
 def _hash_password(password: str) -> str:
-    
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
