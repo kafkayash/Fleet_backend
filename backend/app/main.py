@@ -4,7 +4,7 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Body
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 from email.message import EmailMessage
 import smtplib
@@ -472,142 +472,36 @@ class ForgotPasswordResponse(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    # Accept both "new_password" and "newPassword" from frontend
+    new_password: str = Field(..., alias="newPassword")
+
+    # Pydantic v1 compatibility
+    class Config:
+        allow_population_by_field_name = True
 
 
 class ResetPasswordResponse(BaseModel):
     message: str
 
 
-@app.post("/auth/register", response_model=RegisterResponse)
-def register_operator(req: RegisterRequest, background_tasks: BackgroundTasks):
-    """
-    Register a new fleet operator.
-
-    - Validates employee_id against artifacts/employee_ids.txt if present.
-    - Ensures no duplicate employee_id or email.
-    - Generates a unique operator_id like 'AB123'.
-    - Sends a welcome email with the operator_id (SMTP).
-    """
-    try:
-        op = auth.register_operator(
-            email=req.email,
-            password=req.password,
-            employee_id=req.employee_id,
-        )
-    except auth.EmployeeNotFound as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except auth.OperatorAlreadyExists as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Registration failed: {e}")
-
-    background_tasks.add_task(
-        send_operator_welcome_email,
-        to_email=op.email,
-        operator_id=op.operator_id,
-    )
-
-    return RegisterResponse(
-        operator_id=op.operator_id,
-        message=(
-            "Registration successful. "
-            "Your unique operator ID has been emailed and is shown here for testing."
-        ),
-    )
-
-
-@app.post("/auth/login", response_model=LoginResponse)
-def login_operator(req: LoginRequest):
-    """
-    Login with operator_id + password.
-    Returns basic operator profile on success.
-    """
-    try:
-        op = auth.login_operator(
-            operator_id=req.operator_id,
-            password=req.password,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Login failed: {e}")
-
-    return LoginResponse(
-        operator_id=op.operator_id,
-        email=op.email,
-        employee_id=op.employee_id,
-        message="Login successful.",
-    )
-
-
-@app.post("/auth/forgot-password", response_model=ForgotPasswordResponse)
-def forgot_password(req: ForgotPasswordRequest, background_tasks: BackgroundTasks):
-    """
-    Request a password reset link to be sent to the operator's email.
-    For security, the response is the same whether or not the email exists.
-    """
-    try:
-        op = auth.find_operator_by_email(req.email)
-    except auth.OperatorNotFound:
-        return ForgotPasswordResponse(
-            message="If an account exists for this email, a reset link has been sent."
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
-
-    token = create_reset_token(op.operator_id, op.email)
-    base = (FRONTEND_BASE_URL or "").rstrip("/")
-    reset_url = f"{base}/reset-password?token={token}"
-
-
-    background_tasks.add_task(
-        send_password_reset_email,
-        to_email=op.email,
-        reset_url=reset_url,
-    )
-
-    return ForgotPasswordResponse(
-        message="If an account exists for this email, a reset link has been sent."
-    )
-
-
 @app.post("/auth/reset-password", response_model=ResetPasswordResponse)
-def reset_password(
-    req: Optional[ResetPasswordRequest] = Body(None),
-    raw: Optional[Dict[str, Any]] = Body(None),
-):
+def reset_password(req: ResetPasswordRequest):
     """
     Verify reset token, update password in JSON and allow login with new password.
-    Accepts either:
-      - JSON: { token, new_password }  OR { token, newPassword }
+    Accepts JSON:
+      - { "token": "...", "new_password": "..." }
+      - { "token": "...", "newPassword": "..." }
     """
     try:
-        # If request matched ResetPasswordRequest, use it
-        if req is not None:
-            token = req.token
-            new_password = req.new_password
-        else:
-            # Otherwise fall back to raw dict (supports newPassword too)
-            data = raw or {}
-            token = data.get("token")
-            new_password = data.get("new_password") or data.get("newPassword")
-
-        if not token:
-            raise HTTPException(status_code=400, detail="Missing reset token")
-        if not new_password:
-            raise HTTPException(status_code=400, detail="Missing new password")
-
-        payload = verify_reset_token(token)
+        payload = verify_reset_token(req.token)
         operator_id = payload.get("sub")
         if not operator_id:
             raise HTTPException(status_code=400, detail="Invalid reset token payload")
 
-        auth.reset_operator_password(operator_id=operator_id, new_password=new_password)
+        auth.reset_operator_password(
+            operator_id=operator_id,
+            new_password=req.new_password
+        )
 
     except HTTPException:
         raise
@@ -621,7 +515,6 @@ def reset_password(
     return ResetPasswordResponse(
         message="Password has been reset. You can now sign in with your new password."
     )
-
 
 # ML ROLLING FORECAST
 
